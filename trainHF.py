@@ -3,15 +3,12 @@ Sources:
 https://www.kaggle.com/datasets/gowrishankarp/newspaper-text-summarization-cnn-dailymail
 https://huggingface.co/docs/transformers/tasks/summarization
 
+
 """
-from torch.utils.data import DataLoader
-from csvDataset import csvDataset
-
-from datasets import load_dataset
-
 import numpy as np
 import os
 
+from datasets import load_dataset
 import evaluate
 
 from transformers import AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, DataCollatorForSeq2Seq
@@ -26,26 +23,13 @@ def get_save_path(dir="models"):
 
     return os.path.join(cwd, str(len(os.listdir(cwd))+1))
 
-def set_model_params(model, t):
-    model.config.decoder_start_token_id = t.bos_token_id                                             
-    model.config.eos_token_id = t.eos_token_id
-
-    # sensible parameters for beam search
-    # set decoding params                               
-    model.config.max_length = 142
-    model.config.early_stopping = True
-    model.config.no_repeat_ngram_size = 3
-    model.config.length_penalty = 2.0
-    model.config.num_beams = 4
-    model.config.vocab_size = model.config.encoder.vocab_size
-
-def compute_metrics(eval_pred, eval):
+def compute_metrics(eval_pred):
     predictions, labels = eval_pred
     decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-    result = eval.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+    result = rouge.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
 
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in predictions]
     result["gen_len"] = np.mean(prediction_lens)
@@ -72,8 +56,6 @@ if __name__=="__main__":
 
     MODEL = "t5-small"
 
-    data = csvDataset("datasets/cnn_dailymail/train.csv")
-
     tokenizer = AutoTokenizer.from_pretrained(MODEL)
 
     dataset = load_dataset("csv", 
@@ -83,19 +65,9 @@ if __name__=="__main__":
 
     tokenized_dataset = dataset.map(preprocess, batched=True)
 
-    # train, test, val = get_datasets(PATH, t)
-
-    trainLoader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=WORKERS)
-    # testLoader = DataLoader(test, batch_size=BATCH_SIZE, shuffle=False, num_workers=WORKERS)
-    # valLoader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=False, num_workers=WORKERS)
-
-
-
     model = AutoModelForSeq2SeqLM.from_pretrained(MODEL)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
-    #model = set_model_params(model, t)
-
-    rogue = evaluate.load("rouge")
+    rouge = evaluate.load("rouge")
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=get_save_path(),
@@ -109,6 +81,9 @@ if __name__=="__main__":
         predict_with_generate=True,
         fp16=True,
         push_to_hub=False,
+        dataloader_num_workers=16,
+        remove_unused_columns=True,
+        
     )
 
     trainer = Seq2SeqTrainer(
