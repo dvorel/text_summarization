@@ -4,20 +4,12 @@ https://www.kaggle.com/datasets/gowrishankarp/newspaper-text-summarization-cnn-d
 https://huggingface.co/docs/transformers/tasks/summarization
 
 """
-from torch.utils.data import DataLoader
-from csvDataset import csvDataset
+import os
+import numpy as np
 
 from datasets import load_dataset
-
-import numpy as np
-import os
-
 import evaluate
-
-from transformers import AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, DataCollatorForSeq2Seq
-
-#Tokenizer
-from transformers import AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, DataCollatorForSeq2Seq, AutoTokenizer
 
 
 def get_save_path(dir="models"):
@@ -64,36 +56,22 @@ def preprocess(examples, prefix= "summarize: "):
 
 if __name__=="__main__":
     PATH = "datasets/cnn_dailymail/"
-    
     BATCH_SIZE = 16
     ENC_MAX = 512
     DEC_MAX = 128
     WORKERS = 0
-
     MODEL = "t5-small"
 
-    data = csvDataset("datasets/cnn_dailymail/train.csv")
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL)
-
     dataset = load_dataset("csv", 
                            data_files={
                                 "train": os.path.join(PATH, "train.csv"), 
                                 "test": os.path.join(PATH, "test.csv")})
 
     tokenized_dataset = dataset.map(preprocess, batched=True)
-
-    # train, test, val = get_datasets(PATH, t)
-
-    trainLoader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=WORKERS)
-    # testLoader = DataLoader(test, batch_size=BATCH_SIZE, shuffle=False, num_workers=WORKERS)
-    # valLoader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=False, num_workers=WORKERS)
-
-
-
     model = AutoModelForSeq2SeqLM.from_pretrained(MODEL)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
-    #model = set_model_params(model, t)
 
     rogue = evaluate.load("rouge")
 

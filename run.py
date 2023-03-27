@@ -1,5 +1,5 @@
 import gradio as gr
-from transformers import pipeline
+from transformers import pipeline, AutoModelForSeq2SeqLM
 import pandas as pd
 import os
 
@@ -14,12 +14,15 @@ def load_model(model_dir=None):
         
         print(f"Using model from: {model_dir}\n")
         summarizer = pipeline("summarization", model=model_dir)
-        return summarizer
     except:
-        print("Model could not be loaded!")
-        quit()
+        print("Loading default t5-small!")
+        summarizer = pipeline("summarization", 
+                              model=AutoModelForSeq2SeqLM.from_pretrained("t5-small"), 
+                              tokenizer=AutoTokenizer.from_pretrained("t5-small"))
+    
+    return summarizer
 
-def load_examples(file="datasets/cnn_dailymail/validation.csv", col="article", num=10):
+def load_examples(file=os.path.join(os.getcwd(), "examples.csv"), col="article", num=10):
     print(f"Loading {num} examples from: {file}")
     dt = pd.read_csv(file)
     dt = dt[col].iloc[:num]
