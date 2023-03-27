@@ -21,3 +21,4 @@ Summarization is achived using finetuned t5-small transformer model and auto tok
 
 ## App:
 
+https://user-images.githubusercontent.com/24752476/228027212-e5834a0d-d0d3-4938-9340-122d6646cc8c.mp4
